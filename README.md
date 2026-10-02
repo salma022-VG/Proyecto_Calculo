@@ -15,6 +15,11 @@ Todo lo que calcula la página se muestra con el procedimiento completo, paso a 
 fórmulas y los números sustituidos. No es una calculadora: es un desarrollo escrito que se
 recalcula cada vez que cambias un parámetro.
 
+Son **diez pestañas**: seis de teoría aplicada (integral definida, sumas de Riemann, derivadas,
+área entre curvas, velocidad media y un formulario), dos talleres resueltos, una que **rehace
+todos los cálculos en Python** para contrastarlos, y una que lleva los resultados a un **mapa de
+Medellín**.
+
 ---
 
 ## Cómo abrirlo
@@ -22,11 +27,19 @@ recalcula cada vez que cambias un parámetro.
 **En línea:** https://salma022-vg.github.io/Proyecto_Calculo/
 
 **En tu computador:** descarga `index.html` y haz doble clic. Se abre en cualquier navegador
-(Edge, Chrome, Firefox). No hay que instalar nada, ni servidor, ni conexión a internet.
+(Edge, Chrome, Firefox). No hay que instalar nada ni montar un servidor.
 
-La única excepción es el botón **⬇ Descargar Excel de metodologías**: la librería que arma el
-archivo `.xlsx` (SheetJS) se descarga de internet la primera vez que lo pulsas en cada sesión.
-Si no hay conexión, la página avisa y todo lo demás sigue funcionando igual.
+**Las ocho primeras pestañas funcionan sin conexión a internet.** Tres funciones sí la necesitan,
+porque descargan una librería la primera vez que las usas en cada sesión:
+
+| Función | Qué descarga |
+|---|---|
+| ⬇ Descargar Excel de metodologías | SheetJS, que arma el archivo `.xlsx` |
+| 9 · Verificación | Pyodide y numpy, para ejecutar Python en el navegador |
+| 10 · Mapa | Leaflet, los mosaicos del mapa y, si lo pides, los trazados de OpenStreetMap |
+
+Si no hay conexión, cada una avisa con un mensaje y el resto de la página sigue funcionando
+igual.
 
 El archivo es **autocontenido**: los datos, el código y los estilos están dentro del mismo HTML.
 Se puede enviar por correo o copiar en una memoria USB tal cual.
@@ -146,7 +159,7 @@ fórmulas de Excel, y por eso es el que viaja al libro descargable.
 
 ---
 
-## Las ocho pestañas
+## Las diez pestañas
 
 ### 1 · Integral definida
 
@@ -301,6 +314,55 @@ Taller de **7 secciones** centrado en elegir la técnica de integración correct
 - **R7 · Recomendación ejecutiva** — genera un borrador redactado con los resultados numéricos
   del corredor y la franja elegidos, para completar con el análisis del equipo.
 
+### 9 · Verificación
+
+Rehace los cálculos **en Python, dentro del navegador**, y los compara con los que hizo
+JavaScript. Es un control cruzado: dos implementaciones independientes del mismo modelo que
+tienen que coincidir.
+
+Al pulsar **▶ Ejecutar** se descarga [Pyodide](https://pyodide.org) (Python compilado a
+WebAssembly) junto con **numpy**, y se ejecuta una función `analizar(q, K, a, b, n)` escrita en
+Python que reconstruye todo desde cero con álgebra matricial:
+
+- los coeficientes de Fourier, con productos matriciales en vez de bucles;
+- la integral exacta por el Teorema Fundamental;
+- las aproximaciones por trapecios y punto medio;
+- **la regla de Simpson**, que no aparece en ninguna otra pestaña (ajusta n al par siguiente si
+  hace falta, porque Simpson lo exige);
+- el conteo real de los datos, con el solape de cada hora contra el intervalo [a, b];
+- el **R²** del modelo y los puntos críticos de q′(t) = 0, localizados por interpolación lineal
+  entre cambios de signo sobre una malla de 4.801 puntos.
+
+El resultado es una tabla de cuatro columnas —concepto, valor en JavaScript, valor en Python y
+diferencia— más el R², la hora pico y la lista de máximos y mínimos del día. Las diferencias
+deben salir prácticamente en cero; si alguna no lo hace, hay un error en alguna de las dos
+implementaciones.
+
+Una vez cargado Python, la pestaña **recalcula sola** cada vez que cambias un control, sin volver
+a descargar nada.
+
+### 10 · Mapa
+
+Sitúa los corredores sobre un mapa de Medellín con [Leaflet](https://leafletjs.com) y los
+colorea según su tráfico, con un deslizador que recorre las 24 horas del día.
+
+- **Variable a mapear**: intensidad q (veh/h) o velocidad v (km/h).
+- **Escala de color fija** para todo el día —de verde a rojo pasando por ámbar—, calculada sobre
+  el mínimo y el máximo de *todos* los corredores en *todas* las horas. Al mover el deslizador,
+  el color cambia porque cambia el tráfico, no porque se haya reajustado la escala. Esto es lo
+  que permite comparar horas entre sí.
+- **Clic en un corredor**: abre un globo con su intensidad y su velocidad a esa hora, y carga su
+  curva del día en la gráfica de al lado.
+- **Mapa base** elegible entre Esri Calles y OpenTopoMap. Esri va primero porque OpenStreetMap
+  bloquea sus mosaicos cuando la página se abre como archivo local.
+- **🗺 Cargar trazado real**: por defecto cada corredor es un punto aproximado. Este botón
+  consulta la API **Overpass** de OpenStreetMap y reemplaza los puntos por el trazado real de
+  las vías, probando variantes del nombre (*Calle 30*, *Avenida 30*…) y con un segundo servidor
+  de reserva si el primero falla.
+
+Al lado del mapa, las tarjetas muestran el valor del corredor a esa hora, **su posición en el
+ranking** de todos los corredores en ese momento, y el promedio general.
+
 ---
 
 ## El Excel que genera
@@ -332,18 +394,22 @@ recalcula Excel, para que la diferencia se vea y sea ≈ 0.
 
 ## Cómo está hecho por dentro
 
-Un solo archivo HTML de unas 1.090 líneas, sin frameworks ni dependencias:
+Un solo archivo HTML de unas 1.350 líneas, sin frameworks y sin nada que instalar:
 
-- **Líneas 1–91** — estilos CSS, con variables de color y soporte automático de **modo claro y
+- **Líneas 7–94** — estilos CSS, con variables de color y soporte automático de **modo claro y
   oscuro** según la configuración del sistema.
-- **Líneas 92–194** — estructura de la página: cabecera, las ocho pestañas, el panel de controles
+- **Líneas 96–212** — estructura de la página: cabecera, las diez pestañas, el panel de controles
   (que se muestra u oculta según la pestaña activa), el lienzo de la gráfica y el pie con la nota
   metodológica.
-- **Línea 196** — la constante `DATA` con los 44 corredores. Es la línea larguísima del archivo:
+- **Línea 214** — la constante `DATA` con los 44 corredores. Es la línea larguísima del archivo:
   ahí están los 44 × 11 perfiles horarios.
-- **Líneas 197 en adelante** — el JavaScript, organizado en bloques comentados: modelo de
-  Fourier, formato de números, interfaz, dibujo en canvas, una función por pestaña, ajuste
-  polinómico, el cálculo común de los talleres y el generador del Excel.
+- **Líneas 215–1346** — el JavaScript, organizado en bloques comentados: modelo de Fourier,
+  formato de números, interfaz, dibujo en canvas, una función por pestaña, ajuste polinómico, el
+  cálculo común de los talleres, el generador del Excel, el código Python y el mapa.
+
+Las cuatro librerías externas (SheetJS, Pyodide, numpy y Leaflet) **no están incrustadas**: se
+descargan solo cuando pulsas el botón que las necesita. Por eso el archivo pesa 274 KB y no
+varios megas, y por eso las ocho primeras pestañas funcionan sin conexión.
 
 Las gráficas se dibujan a mano sobre un elemento `<canvas>`, con reescalado según la densidad de
 pantalla. Al pasar el cursor por encima aparece un recuadro con los valores en ese instante, y lo
@@ -355,11 +421,15 @@ decimales.
 
 ### Editar el proyecto
 
-- **Cambiar los datos**: reemplazar la constante `DATA` de la línea 196, respetando la estructura
+- **Cambiar los datos**: reemplazar la constante `DATA` de la línea 214, respetando la estructura
   `{ corredor: { grupo: { q: [24], v: [24], dias, carriles } } }`.
 - **Cambiar el periodo que se muestra**: la constante `PERIODO`, justo debajo.
 - **Cambiar los valores iniciales**: el objeto `AB` fija la ventana [a, b] por defecto de cada
   pestaña, y unas líneas más arriba se fijan el corredor y el tipo de día iniciales.
+- **Añadir un corredor al mapa**: agregar su nombre y sus coordenadas a `GEO_APROX`, con el
+  nombre escrito exactamente igual que en `DATA`.
+- **Cambiar los cálculos de Python**: la constante `PY_CODE` contiene el código fuente completo
+  como texto; se edita ahí mismo, sin archivos aparte.
 
 ---
 
@@ -374,5 +444,13 @@ decimales.
   para comparar franjas horarias y corredores entre sí, no como censo de vehículos distintos.
 - **Los datos son de julio y agosto de 2020**, en plena pandemia. Los volúmenes son más bajos que
   los de un año normal, aunque la forma del día (los picos de la mañana y la tarde) se conserva.
-- **El Excel necesita internet la primera vez** de cada sesión, porque la librería que arma el
-  `.xlsx` se descarga en ese momento en vez de venir incrustada en el archivo.
+- **El mapa muestra 21 de los 44 corredores.** Solo esos tienen coordenadas en la tabla
+  `GEO_APROX`; el resto tiene datos y aparece en las demás pestañas, pero no en el mapa. Para
+  añadir uno basta con agregar su nombre y su par latitud/longitud a esa tabla.
+- **Las ubicaciones del mapa son aproximadas**: un punto por corredor, no su trazado. El botón
+  *Cargar trazado real* las sustituye por las líneas de OpenStreetMap, pero depende de un
+  servicio público (Overpass) que a veces va lento o rechaza la consulta. Si falla, el mapa se
+  queda con los puntos aproximados y lo avisa.
+- **Tres funciones necesitan internet la primera vez** de cada sesión: el Excel, la pestaña de
+  Verificación y la del Mapa. Las librerías se descargan en ese momento en vez de venir
+  incrustadas, que es lo que mantiene el archivo en 274 KB.
